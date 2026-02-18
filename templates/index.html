@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDFCraft — Real PDF Processing</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8f7f4;--surface:#fff;--s2:#f1f0ec;--border:#e5e3dc;
+  --text:#1a1916;--muted:#7a7870;
+  --red:#e5383b;--red-l:#fff1f1;--red-h:#c1121f;
+  --green:#059669;--blue:#2563eb;--orange:#d97706;--purple:#7c3aed;
+}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+button,input,select,textarea{font-family:inherit}
+a{color:inherit;text-decoration:none}
+
+/* ── NAV ── */
+nav{position:sticky;top:0;z-index:300;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:rgba(248,247,244,.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:10px;font-family:'Fraunces',serif;font-size:22px;font-weight:900;cursor:pointer}
+.logo-box{width:34px;height:34px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px}
+.nav-links{display:flex;gap:4px}
+.nav-links a{padding:6px 14px;border-radius:8px;font-size:14px;font-weight:500;color:var(--muted);transition:.2s}
+.nav-links a:hover{color:var(--text);background:var(--s2)}
+.nav-right{display:flex;align-items:center;gap:10px}
+.btn-l{padding:8px 18px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--text);font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
+.btn-l:hover{border-color:var(--text)}
+.btn-s{padding:8px 18px;border-radius:8px;border:none;background:var(--red);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
+.btn-s:hover{background:var(--red-h);transform:translateY(-1px)}
+
+/* Server status pill */
+.srv-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:100px;border:1px solid var(--border);font-size:12px;font-weight:600;background:#fff}
+.srv-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:.3s}
+.srv-dot.online{background:#22c55e;box-shadow:0 0 6px #22c55e}
+.srv-dot.offline{background:#ef4444}
+.srv-dot.checking{background:#f59e0b;animation:blink .8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── AUTH ── */
+.auth-ov{position:fixed;inset:0;z-index:600;background:rgba(26,25,22,.65);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px}
+.auth-ov.open{display:flex}
+.auth-box{background:#fff;border-radius:24px;width:100%;max-width:440px;animation:popIn .3s cubic-bezier(.16,1,.3,1);box-shadow:0 20px 60px rgba(0,0,0,.15);position:relative;overflow:hidden}
+.auth-head{padding:32px 32px 0;text-align:center}
+.auth-ttl{font-family:'Fraunces',serif;font-size:26px;font-weight:900;margin-bottom:6px}
+.auth-sub{font-size:14px;color:var(--muted);margin-bottom:4px}
+.auth-body{padding:24px 32px 32px;display:flex;flex-direction:column;gap:12px}
+.a-tabs{display:flex;background:var(--s2);border-radius:10px;padding:4px}
+.a-tab{flex:1;padding:8px;border-radius:7px;border:none;background:transparent;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;transition:.2s}
+.a-tab.on{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.flabel{font-size:13px;font-weight:600;display:block;margin-bottom:5px}
+.finput{display:block;width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--border);font-size:14px;outline:none;transition:.2s;background:var(--bg)}
+.finput:focus{border-color:var(--red);background:#fff;box-shadow:0 0 0 3px rgba(229,56,59,.1)}
+.finput.err{border-color:var(--red);background:var(--red-l)}
+.ferr{font-size:12px;color:var(--red);font-weight:500;margin-top:4px;display:none}
+.ferr.on{display:block}
+.a-sub{width:100%;padding:14px;border-radius:12px;border:none;background:var(--red);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.2s}
+.a-sub:hover{background:var(--red-h);transform:translateY(-1px)}
+.a-sub:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.a-div{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+.a-div::before,.a-div::after{content:'';flex:1;height:1px;background:var(--border)}
+.soc-b{display:flex;align-items:center;justify-content:center;gap:10px;padding:11px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:.2s;width:100%}
+.soc-b:hover{background:var(--s2);border-color:#aaa}
+.a-sw{text-align:center;font-size:13px;color:var(--muted)}
+.a-sw b{color:var(--red);cursor:pointer}
+.auth-x{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.auth-x:hover{background:var(--s2)}
+.row2{display:flex;gap:10px}.row2 .fw{flex:1}
+/* user avatar */
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--purple));display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;cursor:pointer;position:relative}
+.u-drop{position:absolute;top:44px;right:0;background:#fff;border:1px solid var(--border);border-radius:14px;padding:8px;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.12);display:none;z-index:400}
+.u-drop.open{display:block}
+.ud-n{padding:8px 12px 2px;font-size:13px;font-weight:700}
+.ud-e{padding:0 12px 10px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);margin-bottom:6px}
+.ud-i{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:.15s}
+.ud-i:hover{background:var(--s2)}
+.ud-i.red{color:var(--red)}.ud-i.red:hover{background:var(--red-l)}
+
+/* ── HERO ── */
+.hero{text-align:center;padding:72px 24px 56px;max-width:860px;margin:0 auto}
+.htag{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:100px;background:var(--red-l);border:1px solid rgba(229,56,59,.2);color:var(--red);font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:24px}
+h1{font-family:'Fraunces',serif;font-size:clamp(38px,6vw,66px);font-weight:900;line-height:1.05;letter-spacing:-2px;margin-bottom:20px}
+h1 span{color:var(--red)}
+.hero p{color:var(--muted);font-size:17px;line-height:1.7;max-width:520px;margin:0 auto 36px}
+.srch{display:flex;max-width:500px;margin:0 auto;background:#fff;border:2px solid var(--border);border-radius:14px;overflow:hidden;transition:.2s}
+.srch:focus-within{border-color:var(--red);box-shadow:0 0 0 4px rgba(229,56,59,.1)}
+.srch svg{margin-left:16px;flex-shrink:0;color:var(--muted);align-self:center}
+.srch input{flex:1;padding:14px 12px;border:none;outline:none;background:transparent;font-size:15px}
+.srch input::placeholder{color:var(--muted)}
+.srch button{margin:5px;padding:9px 20px;border-radius:9px;border:none;background:var(--red);color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+.srch button:hover{background:var(--red-h)}
+.stats{display:flex;justify-content:center;gap:40px;margin-top:44px;flex-wrap:wrap}
+.stn{font-family:'Fraunces',serif;font-size:30px;font-weight:900;line-height:1}
+.stl{font-size:12px;color:var(--muted);margin-top:4px;font-weight:500;text-align:center}
+
+/* ── TOOLS ── */
+.ta{max-width:1300px;margin:0 auto;padding:0 32px 80px}
+.no-res{display:none;text-align:center;padding:80px 20px;color:var(--muted)}
+.cat-b{margin-bottom:56px}
+.cat-h{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--border)}
+.cat-dot{width:12px;height:12px;border-radius:50%}
+.cat-t{font-family:'Fraunces',serif;font-size:22px;font-weight:900;letter-spacing:-.5px}
+.cat-c{margin-left:auto;font-size:12px;font-weight:600;color:var(--muted);background:var(--s2);padding:3px 10px;border-radius:100px}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:12px}
+.tcard{position:relative;background:#fff;border:1.5px solid var(--border);border-radius:16px;padding:20px 18px 18px;cursor:pointer;transition:all .22s cubic-bezier(.16,1,.3,1);display:flex;flex-direction:column;gap:10px}
+.tcard:hover{border-color:var(--cc,var(--red));transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.1)}
+.tcard:active{transform:translateY(-1px)}
+.tc-ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.tc-nm{font-size:14px;font-weight:700;line-height:1.2}
+.tc-ds{font-size:12px;color:var(--muted);line-height:1.5}
+.tc-bg{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:2px 7px;border-radius:100px}
+.bg-new{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
+.bg-ai{background:#ede9fe;color:#7c3aed;border:1px solid #c4b5fd}
+.divr{height:1px;background:var(--border);margin-bottom:56px}
+
+/* ── TOOL MODAL ── */
+.ov{position:fixed;inset:0;z-index:400;background:rgba(26,25,22,.6);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px}
+.ov.open{display:flex}
+.modal{background:#fff;border-radius:24px;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;animation:popIn .3s cubic-bezier(.16,1,.3,1);box-shadow:0 20px 60px rgba(0,0,0,.15)}
+@keyframes popIn{from{opacity:0;transform:scale(.9)translateY(20px)}to{opacity:1;transform:scale(1)translateY(0)}}
+.m-top{padding:24px 28px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;position:sticky;top:0;background:#fff;z-index:10;border-radius:24px 24px 0 0;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:0}
+.m-ic{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.m-info{flex:1}
+.m-nm{font-family:'Fraunces',serif;font-size:22px;font-weight:900;margin-bottom:4px}
+.m-ds{font-size:13px;color:var(--muted);line-height:1.5}
+.m-x{width:36px;height:36px;flex-shrink:0;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s}
+.m-x:hover{background:var(--s2);color:var(--text)}
+.m-body{padding:20px 28px 28px;display:flex;flex-direction:column;gap:14px}
+
+/* Options row */
+.opts-row{display:flex;flex-direction:column;gap:10px;background:var(--s2);border-radius:14px;padding:14px}
+.opt-group{display:flex;flex-direction:column;gap:5px}
+.opt-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.opt-sel{padding:9px 12px;border-radius:9px;border:1.5px solid var(--border);background:#fff;font-size:14px;color:var(--text);outline:none;cursor:pointer;transition:.2s}
+.opt-sel:focus{border-color:var(--red)}
+.opt-inp{padding:9px 12px;border-radius:9px;border:1.5px solid var(--border);background:#fff;font-size:14px;color:var(--text);outline:none;transition:.2s;width:100%}
+.opt-inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(229,56,59,.1)}
+.opt-hint{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* hint bar */
+.mhint{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;font-size:13px;color:#1d4ed8;font-weight:500}
+/* drop zone */
+.dz{border:2px dashed var(--border);border-radius:16px;padding:44px 24px;text-align:center;cursor:pointer;transition:.2s;background:var(--bg)}
+.dz:hover,.dz.dg{border-color:var(--dzc,var(--red));background:var(--dzb,var(--red-l))}
+.dz-ic{font-size:40px;margin-bottom:12px;display:block}
+.dz-t{font-size:16px;font-weight:700;margin-bottom:6px}
+.dz-s{font-size:13px;color:var(--muted)}
+.dz-s b{color:var(--dzc,var(--red));font-weight:600;text-decoration:underline;cursor:pointer}
+.dz-fmts{display:flex;justify-content:center;gap:6px;margin-top:12px;flex-wrap:wrap}
+.dz-f{font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--s2);color:var(--muted);border:1px solid var(--border)}
+input[type=file]{display:none}
+/* file list */
+.flist{display:flex;flex-direction:column;gap:7px}
+.fitem{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:var(--s2);border:1px solid var(--border);font-size:13px}
+.fi-ic{font-size:18px;flex-shrink:0}
+.fi-nm{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.fi-sz{color:var(--muted);font-size:12px;flex-shrink:0}
+.fi-st{font-size:11px;font-weight:700;padding:2px 8px;border-radius:100px;background:#dcfce7;color:#15803d;flex-shrink:0}
+.fi-rm{width:24px;height:24px;border-radius:6px;border:none;background:transparent;color:var(--muted);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;flex-shrink:0}
+.fi-rm:hover{background:#fee2e2;color:var(--red)}
+.add-more{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border-radius:10px;border:1.5px dashed var(--border);background:transparent;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;transition:.2s;width:100%}
+.add-more:hover{border-color:var(--dzc,var(--red));color:var(--dzc,var(--red));background:var(--dzb,var(--red-l))}
+/* process btn */
+.proc-btn{width:100%;padding:15px;border-radius:12px;border:none;font-size:15px;font-weight:700;color:#fff;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.proc-btn:hover{filter:brightness(1.1);transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.proc-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;filter:none}
+.hidden{display:none!important}
+/* upload progress */
+.upl-prog{display:none;flex-direction:column;gap:10px}
+.upl-prog.on{display:flex}
+.upl-lb{font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.upl-tr{height:8px;background:var(--s2);border-radius:100px;overflow:hidden}
+.upl-br{height:100%;border-radius:100px;width:0%;transition:width .15s}
+.upl-msg{font-size:12px;color:var(--muted)}
+/* success */
+.sbox{display:none;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:8px 0}
+.sbox.on{display:flex}
+.s-ic{width:72px;height:72px;border-radius:50%;background:#ecfdf5;display:flex;align-items:center;justify-content:center;font-size:32px;animation:bIn .5s cubic-bezier(.16,1,.3,1)}
+@keyframes bIn{0%{transform:scale(0)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
+.s-ttl{font-family:'Fraunces',serif;font-size:24px;font-weight:900}
+.s-sub{font-size:14px;color:var(--muted);max-width:340px;line-height:1.6}
+.dl-btn{padding:13px 32px;border-radius:12px;border:none;background:var(--green);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:8px}
+.dl-btn:hover{background:#047857;transform:translateY(-1px);box-shadow:0 4px 16px rgba(5,150,105,.3)}
+.do-a{padding:10px 24px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text);font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
+.do-a:hover{border-color:var(--text)}
+/* error */
+.err-box{display:none;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:8px 0}
+.err-box.on{display:flex}
+.err-ic{font-size:48px}
+.err-ttl{font-size:18px;font-weight:700;color:var(--red)}
+.err-sub{font-size:14px;color:var(--muted);max-width:340px}
+.err-retry{padding:11px 28px;border-radius:10px;border:none;background:var(--red);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:.2s}
+.err-retry:hover{background:var(--red-h)}
+
+/* ── FEATURES ── */
+.feats{background:var(--text);color:#fff;padding:80px 32px}
+.fi{max-width:1300px;margin:0 auto}
+.fi h2{font-family:'Fraunces',serif;font-size:clamp(30px,4vw,46px);font-weight:900;margin-bottom:12px;letter-spacing:-1px}
+.fi>p{color:rgba(255,255,255,.5);font-size:16px;margin-bottom:52px;max-width:480px}
+.fg{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px}
+.fc{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:26px;transition:.2s}
+.fc:hover{background:rgba(255,255,255,.08);transform:translateY(-2px)}
+.fc-i{font-size:26px;margin-bottom:14px}
+.fc h3{font-size:16px;font-weight:700;margin-bottom:8px}
+.fc p{font-size:13px;color:rgba(255,255,255,.45);line-height:1.6}
+
+/* ── FOOTER ── */
+footer{background:var(--text);color:rgba(255,255,255,.45);border-top:1px solid rgba(255,255,255,.08);padding:44px 32px 28px}
+.fi2{max-width:1300px;margin:0 auto}
+.fg2{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:36px}
+.fb .logo{color:#fff;margin-bottom:12px}
+.fb p{font-size:13px;line-height:1.7;max-width:220px}
+.fc2 h4{font-size:11px;font-weight:700;color:#fff;margin-bottom:12px;text-transform:uppercase;letter-spacing:.7px}
+.fc2 a{display:block;font-size:13px;margin-bottom:8px;transition:.2s;cursor:pointer}
+.fc2 a:hover{color:#fff}
+.fbot{border-top:1px solid rgba(255,255,255,.08);padding-top:20px;display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:10px}
+.tbadges{display:flex;gap:14px;flex-wrap:wrap}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;z-index:800;background:var(--text);color:#fff;border-radius:12px;padding:13px 18px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;box-shadow:0 8px 40px rgba(0,0,0,.2);transform:translateY(20px);opacity:0;transition:all .3s cubic-bezier(.16,1,.3,1);pointer-events:none;max-width:360px}
+.toast.on{transform:translateY(0);opacity:1}
+
+@media(max-width:768px){
+  nav{padding:0 16px}.nav-links{display:none}
+  .hero{padding:48px 16px 36px}.ta{padding:0 16px 60px}
+  .fg2{grid-template-columns:1fr 1fr}.fg{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+    <div class="logo-box">📄</div>PDFCraft
+  </div>
+  <div class="nav-links">
+    <a href="#tools">All Tools</a>
+    <a href="#features">Features</a>
+    <a href="#" onclick="showToast('💰 Pricing coming soon!')">Pricing</a>
+    <a href="#" onclick="showToast('📖 API docs coming soon!')">API</a>
+  </div>
+  <div class="nav-right">
+    <!-- Server Status -->
+    <div class="srv-pill" id="srvPill">
+      <div class="srv-dot checking" id="srvDot"></div>
+      <span id="srvTxt">Checking server…</span>
+    </div>
+    <div id="navArea">
+      <div style="display:flex;gap:10px">
+        <button class="btn-l" onclick="openAuth('login')">Log in</button>
+        <button class="btn-s" onclick="openAuth('signup')">Get Started Free</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ AUTH MODAL ══ -->
+<div class="auth-ov" id="authOv" onclick="if(event.target===this)closeAuth()">
+  <div class="auth-box">
+    <button class="auth-x" onclick="closeAuth()">×</button>
+    <div class="auth-head">
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Fraunces',serif;font-size:20px;font-weight:900;margin-bottom:20px">
+        <div class="logo-box" style="width:28px;height:28px;font-size:14px">📄</div>PDFCraft
+      </div>
+      <div class="auth-ttl" id="authTtl">Welcome back</div>
+      <div class="auth-sub" id="authSb">Sign in to your account</div>
+    </div>
+    <div class="auth-body">
+      <div class="a-tabs">
+        <button class="a-tab on" id="tlog" onclick="switchTab('login')">Log In</button>
+        <button class="a-tab" id="tsup" onclick="switchTab('signup')">Sign Up</button>
+      </div>
+      <button class="soc-b" onclick="socialLogin()">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+      <div class="a-div">or</div>
+      <div id="lForm">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div><label class="flabel">Email</label><input class="finput" type="email" id="lEm" placeholder="you@example.com"><div class="ferr" id="lEmE">Enter a valid email</div></div>
+          <div><label class="flabel">Password</label><input class="finput" type="password" id="lPw" placeholder="Your password" onkeydown="if(event.key==='Enter')doLogin()"><div class="ferr" id="lPwE">Password min 6 characters</div></div>
+          <div style="text-align:right"><span style="font-size:13px;color:var(--red);cursor:pointer;font-weight:600" onclick="showToast('📧 Password reset sent!')">Forgot password?</span></div>
+          <button class="a-sub" id="lBtn" onclick="doLogin()">Sign In →</button>
+          <div class="a-sw">No account? <b onclick="switchTab('signup')">Sign up free</b></div>
+        </div>
+      </div>
+      <div id="sForm" style="display:none">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="row2">
+            <div class="fw"><label class="flabel">First name</label><input class="finput" type="text" id="sFn" placeholder="John"></div>
+            <div class="fw"><label class="flabel">Last name</label><input class="finput" type="text" id="sLn" placeholder="Doe"></div>
+          </div>
+          <div><label class="flabel">Email</label><input class="finput" type="email" id="sEm" placeholder="you@example.com"><div class="ferr" id="sEmE">Enter a valid email</div></div>
+          <div><label class="flabel">Password</label><input class="finput" type="password" id="sPw" placeholder="Min. 6 characters" onkeydown="if(event.key==='Enter')doSignup()"><div class="ferr" id="sPwE">Password min 6 characters</div></div>
+          <button class="a-sub" id="sBtn" onclick="doSignup()">Create Account →</button>
+          <div class="a-sw">Have an account? <b onclick="switchTab('login')">Log in</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="htag">✦ Real PDF Processing — Powered by Python Backend</div>
+  <h1>Every PDF Tool<br>You'll <span>Ever Need</span></h1>
+  <p>Merge, split, compress, convert, rotate, watermark, protect PDFs. Real processing on a Python backend — actual results, real downloads.</p>
+  <div class="srch">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input type="text" placeholder="Search tools… merge, compress, sign…" oninput="doSearch(this.value)" autocomplete="off">
+    <button>Search</button>
+  </div>
+  <div class="stats">
+    <div><div class="stn" style="color:var(--red)">50M+</div><div class="stl">Users</div></div>
+    <div><div class="stn" style="color:var(--blue)">2B+</div><div class="stl">PDFs processed</div></div>
+    <div><div class="stn" style="color:var(--green)">13+</div><div class="stl">Real tools</div></div>
+    <div><div class="stn" style="color:var(--orange)">100%</div><div class="stl">Free</div></div>
+  </div>
+</section>
+
+<!-- TOOLS -->
+<div class="ta" id="tools">
+  <div class="no-res" id="noRes"><div style="font-size:48px;margin-bottom:16px">🔍</div><p style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px">No tools found</p><p>Try "merge", "compress", "sign" or "convert"</p></div>
+  <div id="cats"></div>
+</div>
+
+<!-- FEATURES -->
+<section class="feats" id="features">
+  <div class="fi">
+    <h2>Real backend. Real results.</h2>
+    <p>Every tool runs on a Python server using battle-tested libraries like PyPDF2, Pillow, and ReportLab.</p>
+    <div class="fg">
+      <div class="fc"><div class="fc-i">🐍</div><h3>Python Backend</h3><p>Flask server with PyPDF2, Pillow, and ReportLab. Install once, process unlimited PDFs locally.</p></div>
+      <div class="fc"><div class="fc-i">📁</div><h3>Multi-File Merge</h3><p>Upload 2, 5, or 20+ PDFs. They get genuinely merged server-side and you download one real PDF.</p></div>
+      <div class="fc"><div class="fc-i">🔐</div><h3>Real Encryption</h3><p>Protect PDF actually encrypts your file with a password using AES encryption via PyPDF2.</p></div>
+      <div class="fc"><div class="fc-i">🗜️</div><h3>Real Compression</h3><p>Content streams are compressed using deflate algorithm. Actual file size reduction.</p></div>
+      <div class="fc"><div class="fc-i">💧</div><h3>Real Watermarks</h3><p>ReportLab renders text watermarks with custom opacity, rotation, and fonts onto every page.</p></div>
+      <div class="fc"><div class="fc-i">⏱️</div><h3>Auto-Cleanup</h3><p>Files are automatically deleted from the server after 2 hours. Your data stays private.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="fi2">
+    <div class="fg2">
+      <div class="fb"><div class="logo" style="color:#fff"><div class="logo-box">📄</div>PDFCraft</div><p>Real Python-powered PDF processing. Run it locally or deploy to any server.</p></div>
+      <div class="fc2"><h4>Tools</h4><a onclick="showToast('Merge PDF')">Merge PDF</a><a onclick="showToast('Compress PDF')">Compress PDF</a><a onclick="showToast('Rotate PDF')">Rotate PDF</a><a onclick="showToast('Watermark PDF')">Watermark PDF</a></div>
+      <div class="fc2"><h4>Convert</h4><a onclick="showToast('JPG to PDF')">JPG to PDF</a><a onclick="showToast('PDF to JPG')">PDF to JPG</a><a onclick="showToast('Images to PDF')">Images to PDF</a></div>
+      <div class="fc2"><h4>Project</h4><a onclick="showToast('GitHub coming soon!')">GitHub</a><a onclick="showToast('Docs coming soon!')">Docs</a><a onclick="showToast('API docs coming soon!')">API Reference</a></div>
+    </div>
+    <div class="fbot"><div>© 2025 PDFCraft. All rights reserved.</div><div class="tbadges"><span>🐍 Python/Flask</span><span>📦 PyPDF2 + Pillow</span><span>🔒 Auto-delete 2h</span></div></div>
+  </div>
+</footer>
+
+<!-- TOOL MODAL -->
+<div class="ov" id="ov" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="m-top">
+      <div class="m-ic" id="mIc"></div>
+      <div class="m-info"><div class="m-nm" id="mNm"></div><div class="m-ds" id="mDs"></div></div>
+      <button class="m-x" onclick="closeModal()">×</button>
+    </div>
+    <div class="m-body">
+      <div class="mhint hidden" id="mhint"></div>
+      <!-- Dynamic options (password, page range, etc.) -->
+      <div class="opts-row hidden" id="optsRow"></div>
+      <div class="dz" id="dz" onclick="triggerFile()" ondragover="dragOver(event)" ondragleave="dragLeave()" ondrop="dropFiles(event)">
+        <span class="dz-ic">📂</span>
+        <div class="dz-t" id="dzTitle">Drop your files here</div>
+        <div class="dz-s">or <b onclick="event.stopPropagation();triggerFile()">click to browse</b></div>
+        <div class="dz-fmts" id="dzFmts"></div>
+      </div>
+      <input type="file" id="fileIn" multiple onchange="onFileChange(event)">
+      <div class="flist" id="flist"></div>
+      <button class="add-more hidden" id="addMore" onclick="triggerFile()">＋ Add more files</button>
+      <button class="proc-btn hidden" id="procBtn" onclick="startUpload()">
+        <span id="procTxt">Process File</span> →
+      </button>
+      <!-- Upload progress -->
+      <div class="upl-prog" id="uplProg">
+        <div class="upl-lb"><span id="uplLb">Uploading…</span><span id="uplPct">0%</span></div>
+        <div class="upl-tr"><div class="upl-br" id="uplBr"></div></div>
+        <div class="upl-msg" id="uplMsg">Sending file to server…</div>
+      </div>
+      <!-- Success -->
+      <div class="sbox" id="sbox">
+        <div class="s-ic">✅</div>
+        <div class="s-ttl" id="sTtl">Done!</div>
+        <div class="s-sub" id="sSub">Your file is ready to download.</div>
+        <button class="dl-btn" id="dlBtn">⬇ Download File</button>
+        <button class="do-a" onclick="resetModal()">Process Another File</button>
+      </div>
+      <!-- Error -->
+      <div class="err-box" id="errBox">
+        <div class="err-ic">❌</div>
+        <div class="err-ttl" id="errTtl">Processing Failed</div>
+        <div class="err-sub" id="errSub">Something went wrong.</div>
+        <button class="err-retry" onclick="resetModal()">Try Again</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span id="toastMsg"></span></div>
+
+<script>
+const API = 'http://localhost:5000'; // Change this to your server URL if deploying
+
+// ══════════════════════════════════
+// TOOL DEFINITIONS
+// ══════════════════════════════════
+const CATS = [
+  {id:'org',label:'Organize PDF',color:'#2563eb',bg:'#eff6ff',tools:[
+    {name:'Merge PDF',        icon:'🔗',desc:'Combine 2 or more PDFs into a single document.',          tags:'merge combine join',       fmts:['PDF'],multi:true,min:2,  endpoint:'/api/merge',       field:'files',
+     options:[]},
+    {name:'Split PDF',        icon:'✂️',desc:'Split every page into individual PDF files (downloaded as ZIP).',tags:'split divide separate', fmts:['PDF'],multi:false,    endpoint:'/api/split',       field:'file',
+     options:[{id:'mode',label:'Split Mode',type:'select',choices:[{v:'all',l:'Every page into separate PDF'},{v:'range',l:'Custom page range'}]},{id:'range',label:'Page Range (e.g. 1-3,5,7)',type:'text',placeholder:'e.g. 1-3,5,8',hint:'Leave empty to split all pages',showIf:'range'}]},
+    {name:'Remove Pages',     icon:'🗑️',desc:'Delete specific pages from your PDF.',                    tags:'remove delete pages',      fmts:['PDF'],multi:false,    endpoint:'/api/remove-pages',field:'file',
+     options:[{id:'pages',label:'Pages to Remove (e.g. 2,4,6)',type:'text',placeholder:'e.g. 2,4,6',hint:'Enter comma-separated page numbers to remove'}]},
+    {name:'Extract Pages',    icon:'📤',desc:'Extract specific pages into a new PDF.',                  tags:'extract pull pages',       fmts:['PDF'],multi:false,    endpoint:'/api/extract',     field:'file',
+     options:[{id:'range',label:'Pages to Extract (e.g. 1-3,5)',type:'text',placeholder:'e.g. 1,3,5-8',hint:'Enter page numbers or ranges to extract'}]},
+  ]},
+  {id:'opt',label:'Optimize PDF',color:'#059669',bg:'#ecfdf5',tools:[
+    {name:'Compress PDF',     icon:'🗜️',desc:'Reduce PDF file size using deflate stream compression.',  tags:'compress reduce size',     fmts:['PDF'],multi:false,    endpoint:'/api/compress',    field:'file',options:[]},
+  ]},
+  {id:'edit',label:'Edit PDF',color:'#7c3aed',bg:'#f5f3ff',tools:[
+    {name:'Rotate PDF',       icon:'🔄',desc:'Permanently rotate all pages by 90°, 180°, or 270°.',    tags:'rotate flip turn',         fmts:['PDF'],multi:false,    endpoint:'/api/rotate',      field:'file',
+     options:[{id:'angle',label:'Rotation Angle',type:'select',choices:[{v:'90',l:'90° Clockwise'},{v:'180',l:'180° (Flip)'},{v:'270',l:'270° Counter-clockwise'}]}]},
+    {name:'Watermark PDF',    icon:'💧',desc:'Add a text watermark diagonally across every page.',      tags:'watermark stamp brand',    fmts:['PDF'],multi:false,    endpoint:'/api/watermark',   field:'file',
+     options:[{id:'text',label:'Watermark Text',type:'text',placeholder:'e.g. CONFIDENTIAL',hint:'Text to stamp on every page'},{id:'opacity',label:'Opacity',type:'select',choices:[{v:'0.15',l:'Light (15%)'},{v:'0.3',l:'Medium (30%)'},{v:'0.5',l:'Heavy (50%)'}]}]},
+    {name:'Page Numbers',     icon:'🔢',desc:'Add page numbers to every page of your PDF.',             tags:'page numbers numbering',   fmts:['PDF'],multi:false,    endpoint:'/api/page-numbers',field:'file',
+     options:[{id:'position',label:'Number Position',type:'select',choices:[{v:'bottom-center',l:'Bottom Center'},{v:'bottom-right',l:'Bottom Right'},{v:'bottom-left',l:'Bottom Left'},{v:'top-center',l:'Top Center'}]}]},
+  ]},
+  {id:'sec',label:'PDF Security',color:'#e5383b',bg:'#fff1f1',tools:[
+    {name:'Protect PDF',      icon:'🔒',desc:'Encrypt your PDF with a real AES password.',              tags:'protect password encrypt', fmts:['PDF'],multi:false,    endpoint:'/api/protect',     field:'file',
+     options:[{id:'password',label:'Set Password',type:'password',placeholder:'Enter a strong password',hint:'Remember this password — you will need it to open the file'}]},
+    {name:'Unlock PDF',       icon:'🔓',desc:'Remove password from a PDF you own.',                    tags:'unlock remove password',   fmts:['PDF'],multi:false,    endpoint:'/api/unlock',      field:'file',
+     options:[{id:'password',label:'Current Password',type:'password',placeholder:'Enter the PDF password',hint:'Required to decrypt the file'}]},
+  ]},
+  {id:'conv',label:'Convert',color:'#d97706',bg:'#fffbeb',tools:[
+    {name:'JPG / PNG to PDF', icon:'🖼️',desc:'Convert one or more images into a single PDF.',          tags:'jpg png image photo pdf',  fmts:['JPG','PNG'],multi:true,min:1,endpoint:'/api/images-to-pdf',field:'files',options:[]},
+    {name:'PDF to JPG',       icon:'📸',desc:'Convert every PDF page to JPG images (ZIP download).',   tags:'pdf jpg jpeg image',       fmts:['PDF'],multi:false,    endpoint:'/api/pdf-to-jpg',  field:'file',options:[]},
+  ]},
+  {id:'ai',label:'AI-Powered Tools',color:'#4338ca',bg:'#eef2ff',tools:[
+    {name:'Translate PDF',    icon:'🌍',desc:'Translate PDFs to 100+ languages (requires AI API key).',tags:'translate language ai',    fmts:['PDF'],multi:false,    endpoint:null,badge:'AI',options:[]},
+    {name:'Summarize PDF',    icon:'📝',desc:'Get an AI summary of any PDF.',                          tags:'summarize summary ai',     fmts:['PDF'],multi:false,    endpoint:null,badge:'New',options:[]},
+    {name:'Chat with PDF',    icon:'💬',desc:'Ask questions about your PDF.',                          tags:'chat ask ai',              fmts:['PDF'],multi:false,    endpoint:null,badge:'New',options:[]},
+  ]},
+];
+
+// ══════════════════════════════════
+// BUILD UI
+// ══════════════════════════════════
+(function build(){
+  const accMap={PDF:'.pdf',DOC:'.doc',DOCX:'.docx',JPG:'.jpg,.jpeg',PNG:'.png',BMP:'.bmp',GIF:'.gif',TIFF:'.tiff,.tif'};
+  const con=document.getElementById('cats');
+  CATS.forEach((cat,ci)=>{
+    const b=document.createElement('div'); b.className='cat-b'; b.dataset.cid=cat.id;
+    b.innerHTML=`<div class="cat-h"><div class="cat-dot" style="background:${cat.color}"></div><div class="cat-t">${cat.label}</div><div class="cat-c">${cat.tools.length} tools</div></div><div class="tgrid" id="g-${cat.id}"></div>`;
+    con.appendChild(b);
+    if(ci<CATS.length-1){const d=document.createElement('div');d.className='divr';con.appendChild(d);}
+    const g=b.querySelector('.tgrid');
+    cat.tools.forEach(t=>{
+      const c=document.createElement('div'); c.className='tcard'; c.style.setProperty('--cc',cat.color);
+      c.dataset.tags=(t.name+' '+t.tags).toLowerCase();
+      c.innerHTML=`${t.badge?`<div class="tc-bg ${t.badge==='AI'?'bg-ai':'bg-new'}">${t.badge}</div>`:''}<div class="tc-ic" style="background:${cat.bg}">${t.icon}</div><div class="tc-nm">${t.name}</div><div class="tc-ds">${t.desc}</div>`;
+      c.onclick=()=>openModal(t,cat);
+      g.appendChild(c);
+    });
+  });
+})();
+
+// ══════════════════════════════════
+// SERVER STATUS CHECK
+// ══════════════════════════════════
+async function checkServer(){
+  try{
+    const r=await fetch(API+'/api/status',{signal:AbortSignal.timeout(3000)});
+    const d=await r.json();
+    document.getElementById('srvDot').className='srv-dot online';
+    document.getElementById('srvTxt').textContent='Server Online';
+    document.getElementById('srvPill').style.borderColor='#bbf7d0';
+  }catch(e){
+    document.getElementById('srvDot').className='srv-dot offline';
+    document.getElementById('srvTxt').textContent='Server Offline';
+    document.getElementById('srvPill').style.borderColor='#fecaca';
+  }
+}
+checkServer();
+setInterval(checkServer,15000);
+
+// ══════════════════════════════════
+// SEARCH
+// ══════════════════════════════════
+function doSearch(q){
+  q=(q||'').trim().toLowerCase();
+  const blks=document.querySelectorAll('.cat-b'),dvs=document.querySelectorAll('#cats .divr');
+  if(!q){blks.forEach(b=>b.style.display='');dvs.forEach(d=>d.style.display='');document.getElementById('noRes').style.display='none';return;}
+  dvs.forEach(d=>d.style.display='none');
+  let any=false;
+  blks.forEach(b=>{
+    const cs=b.querySelectorAll('.tcard'); let vis=false;
+    cs.forEach(c=>{const m=c.dataset.tags.includes(q);c.style.display=m?'':'none';if(m)vis=true;});
+    b.style.display=vis?'':'none';if(vis)any=true;
+  });
+  document.getElementById('noRes').style.display=any?'none':'block';
+}
+
+// ══════════════════════════════════
+// AUTH
+// ══════════════════════════════════
+const DB={'demo@pdf.com':'demo123'};
+let me=null;
+function openAuth(t){document.getElementById('authOv').classList.add('open');document.body.style.overflow='hidden';switchTab(t);}
+function closeAuth(){document.getElementById('authOv').classList.remove('open');document.body.style.overflow='';}
+function switchTab(t){
+  document.getElementById('lForm').style.display=t==='login'?'':'none';
+  document.getElementById('sForm').style.display=t==='signup'?'':'none';
+  document.getElementById('tlog').className='a-tab'+(t==='login'?' on':'');
+  document.getElementById('tsup').className='a-tab'+(t==='signup'?' on':'');
+  document.getElementById('authTtl').textContent=t==='login'?'Welcome back':'Create your account';
+  document.getElementById('authSb').textContent=t==='login'?'Sign in to your account':'Free forever';
+}
+function isEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);}
+function clrErr(){document.querySelectorAll('.ferr').forEach(e=>e.className='ferr');document.querySelectorAll('.finput').forEach(f=>f.classList.remove('err'));}
+function shErr(eid,iid,msg){const e=document.getElementById(eid);if(e){e.textContent=msg;e.className='ferr on';}const i=document.getElementById(iid);if(i)i.classList.add('err');}
+function doLogin(){
+  clrErr(); let ok=true;
+  const em=document.getElementById('lEm').value.trim(), pw=document.getElementById('lPw').value;
+  if(!isEmail(em)){shErr('lEmE','lEm','Enter a valid email');ok=false;}
+  if(pw.length<6){shErr('lPwE','lPw','Min 6 characters');ok=false;}
+  if(!ok)return;
+  const b=document.getElementById('lBtn'); b.disabled=true; b.textContent='Signing in…';
+  setTimeout(()=>{
+    b.disabled=false; b.textContent='Sign In →';
+    if(DB[em]&&DB[em]!==pw){shErr('lPwE','lPw','Wrong password. Hint: demo123');return;}
+    DB[em]=DB[em]||pw; loginOK(em.split('@')[0],em);
+  },800);
+}
+function doSignup(){
+  clrErr(); let ok=true;
+  const em=document.getElementById('sEm').value.trim(), pw=document.getElementById('sPw').value, fn=document.getElementById('sFn').value.trim();
+  if(!isEmail(em)){shErr('sEmE','sEm','Enter a valid email');ok=false;}
+  if(pw.length<6){shErr('sPwE','sPw','Min 6 characters');ok=false;}
+  if(!ok)return;
+  const b=document.getElementById('sBtn'); b.disabled=true; b.textContent='Creating…';
+  setTimeout(()=>{b.disabled=false;b.textContent='Create Account →';DB[em]=pw;loginOK(fn||em.split('@')[0],em);},900);
+}
+function socialLogin(){closeAuth();setTimeout(()=>loginOK('User','user@google.com'),300);showToast('✅ Signed in with Google!');}
+function loginOK(name,email){
+  me={name,email}; closeAuth();
+  const init=name.slice(0,2).toUpperCase();
+  document.getElementById('navArea').innerHTML=`<div style="position:relative"><div class="avatar" id="avt" onclick="toggleDrop()">${init}<div class="u-drop" id="udrop"><div class="ud-n">${name}</div><div class="ud-e">${email}</div><div class="ud-i" onclick="showToast('👤 Profile coming soon!')">👤 Profile</div><div class="ud-i" onclick="showToast('📁 My Files coming soon!')">📁 My Files</div><div class="ud-i red" onclick="doLogout()">🚪 Log Out</div></div></div></div>`;
+  showToast(`👋 Welcome, ${name}!`);
+}
+function toggleDrop(){const d=document.getElementById('udrop');if(d)d.classList.toggle('open');}
+document.addEventListener('click',e=>{const a=document.getElementById('avt'),d=document.getElementById('udrop');if(d&&a&&!a.contains(e.target))d.classList.remove('open');});
+function doLogout(){me=null;document.getElementById('navArea').innerHTML=`<div style="display:flex;gap:10px"><button class="btn-l" onclick="openAuth('login')">Log in</button><button class="btn-s" onclick="openAuth('signup')">Get Started Free</button></div>`;showToast('👋 Logged out.');}
+
+// ══════════════════════════════════
+// MODAL
+// ══════════════════════════════════
+let curT=null,curC=null,files=[];
+
+function openModal(tool,cat){
+  if(!tool.endpoint){showToast('🤖 This AI tool requires an API key. Coming soon!');return;}
+  curT=tool; curC=cat; files=[];
+
+  document.getElementById('mIc').textContent=tool.icon;
+  document.getElementById('mIc').style.background=cat.bg;
+  document.getElementById('mNm').textContent=tool.name;
+  document.getElementById('mDs').textContent=tool.desc;
+
+  const accMap={PDF:'.pdf',JPG:'.jpg,.jpeg',PNG:'.png',BMP:'.bmp',GIF:'.gif',TIFF:'.tiff,.tif'};
+  const fi=document.getElementById('fileIn');
+  fi.accept=tool.fmts.map(f=>accMap[f]||'.'+f.toLowerCase()).join(',');
+  fi.multiple=true;
+
+  document.getElementById('dzFmts').innerHTML=tool.fmts.map(f=>`<span class="dz-f">${f}</span>`).join('');
+  document.getElementById('dzTitle').textContent=tool.multi?`Drop your ${tool.fmts.join('/')} files here`:`Drop your ${tool.fmts[0]} file here`;
+
+  document.getElementById('dz').style.setProperty('--dzc',cat.color);
+  document.getElementById('dz').style.setProperty('--dzb',cat.bg);
+  document.getElementById('addMore').style.setProperty('--dzc',cat.color);
+  document.getElementById('addMore').style.setProperty('--dzb',cat.bg);
+  document.getElementById('procBtn').style.background=cat.color;
+  document.getElementById('uplBr').style.background=cat.color;
+
+  // Hint
+  const hint=document.getElementById('mhint');
+  if(tool.multi){hint.className='mhint';hint.textContent=tool.name==='Merge PDF'?'📎 Add 2 or more PDFs — merged in the order shown below':'📎 You can add multiple files at once';}
+  else{hint.className='mhint hidden';}
+
+  // Render options
+  renderOpts(tool.options||[]);
+  resetModal(false);
+  document.getElementById('ov').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function renderOpts(opts){
+  const row=document.getElementById('optsRow');
+  if(!opts||!opts.length){row.className='opts-row hidden';return;}
+  row.className='opts-row';
+  row.innerHTML='';
+  opts.forEach(o=>{
+    const g=document.createElement('div'); g.className='opt-group';
+    if(o.type==='select'){
+      g.innerHTML=`<label class="opt-label">${o.label}</label><select class="opt-sel" id="opt_${o.id}">${(o.choices||[]).map(c=>`<option value="${c.v}">${c.l}</option>`).join('')}</select>`;
+      // Show/hide dependent fields
+      const sel=g.querySelector('select');
+      if(o.id==='mode'){
+        sel.onchange=()=>{
+          const rangeG=document.getElementById('optg_range');
+          if(rangeG)rangeG.style.display=sel.value==='range'?'':'none';
+        };
+      }
+    } else if(o.type==='text'||o.type==='password'){
+      g.id=`optg_${o.id}`;
+      if(o.showIf==='range')g.style.display='none';
+      g.innerHTML=`<label class="opt-label">${o.label}</label><input class="opt-inp" type="${o.type==='password'?'password':'text'}" id="opt_${o.id}" placeholder="${o.placeholder||''}">${o.hint?`<div class="opt-hint">${o.hint}</div>`:''}`;
+    }
+    row.appendChild(g);
+  });
+}
+
+function getOptVal(id,def=''){
+  const el=document.getElementById('opt_'+id);
+  return el ? el.value : def;
+}
+
+function closeModal(){document.getElementById('ov').classList.remove('open');document.body.style.overflow='';}
+
+function resetModal(cf=true){
+  if(cf)files=[];
+  document.getElementById('flist').innerHTML='';
+  document.getElementById('procBtn').classList.add('hidden');
+  document.getElementById('uplProg').classList.remove('on');
+  document.getElementById('sbox').classList.remove('on');
+  document.getElementById('errBox').classList.remove('on');
+  document.getElementById('dz').style.display='';
+  document.getElementById('addMore').classList.add('hidden');
+  document.getElementById('fileIn').value='';
+  renderFiles();
+}
+
+// ══════════════════════════════════
+// FILE HANDLING
+// ══════════════════════════════════
+function triggerFile(){document.getElementById('fileIn').click();}
+function onFileChange(e){addFiles(Array.from(e.target.files));document.getElementById('fileIn').value='';}
+function dragOver(e){e.preventDefault();document.getElementById('dz').classList.add('dg');}
+function dragLeave(){document.getElementById('dz').classList.remove('dg');}
+function dropFiles(e){e.preventDefault();document.getElementById('dz').classList.remove('dg');addFiles(Array.from(e.dataTransfer.files));}
+function addFiles(newFs){newFs.forEach(f=>{if(!files.find(x=>x.name===f.name&&x.size===f.size))files.push(f);});renderFiles();}
+function removeFile(i){files.splice(i,1);renderFiles();}
+function fmtSz(b){return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';}
+
+function renderFiles(){
+  const list=document.getElementById('flist');
+  list.innerHTML='';
+  files.forEach((f,i)=>{
+    const d=document.createElement('div'); d.className='fitem';
+    d.innerHTML=`<div class="fi-ic">📄</div><div class="fi-nm" title="${f.name}">${f.name}</div><div class="fi-sz">${fmtSz(f.size)}</div><div class="fi-st">Ready</div><button class="fi-rm" onclick="removeFile(${i})">×</button>`;
+    list.appendChild(d);
+  });
+  const pb=document.getElementById('procBtn'), am=document.getElementById('addMore');
+  if(!files.length){document.getElementById('dz').style.display='';pb.classList.add('hidden');am.classList.add('hidden');return;}
+  document.getElementById('dz').style.display='none';
+  pb.classList.remove('hidden'); pb.disabled=false; pb.style.opacity='1';
+  if(curT&&curT.multi){
+    am.classList.remove('hidden');
+    const min=curT.min||2;
+    if(files.length<min){pb.disabled=true;pb.style.opacity='.55';document.getElementById('procTxt').textContent=`Add at least ${min} files`;}
+    else{pb.disabled=false;pb.style.opacity='1';document.getElementById('procTxt').textContent=curT.name==='Merge PDF'?`Merge ${files.length} PDFs`:`Process ${files.length} Files`;}
+  } else {
+    am.classList.add('hidden');
+    document.getElementById('procTxt').textContent=`Apply ${curT?curT.name:'Tool'}`;
+  }
+}
+
+// ══════════════════════════════════
+// REAL UPLOAD → SERVER
+// ══════════════════════════════════
+function startUpload(){
+  if(!files.length)return;
+
+  // Check server first
+  const srvOnline=document.getElementById('srvDot').classList.contains('online');
+  if(!srvOnline){
+    showToast('❌ Server is offline. Make sure app.py is running on port 5000.');
+    return;
+  }
+
+  // Hide upload UI
+  document.getElementById('dz').style.display='none';
+  document.getElementById('flist').innerHTML='';
+  document.getElementById('addMore').classList.add('hidden');
+  document.getElementById('procBtn').style.display='none';
+  document.getElementById('optsRow').style.display='none';
+
+  const prog=document.getElementById('uplProg'); prog.classList.add('on');
+  setProgress(10,'Sending to server…','Connecting…');
+
+  const fd=new FormData();
+  // Add files
+  if(curT.field==='files') files.forEach(f=>fd.append('files',f));
+  else fd.append('file',files[0]);
+
+  // Add options
+  (curT.options||[]).forEach(o=>fd.append(o.id, getOptVal(o.id)));
+
+  // Fake progress animation
+  let p=10;
+  const iv=setInterval(()=>{p=Math.min(p+Math.random()*4,88);setProgress(p,'Processing on server…','Running '+curT.name+'…');},200);
+
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST', API+curT.endpoint);
+
+  xhr.upload.onprogress=e=>{
+    if(e.lengthComputable){
+      const up=Math.round(e.loaded/e.total*40);
+      if(up>p){p=up;setProgress(p,'Uploading…','Sending file…');}
+    }
+  };
+
+  xhr.onload=()=>{
+    clearInterval(iv);
+    setProgress(100,'Complete!','Done.');
+    if(xhr.status===200){
+      // Get filename from header
+      const disp=xhr.getResponseHeader('Content-Disposition')||'';
+      const fnMatch=disp.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      const fname=fnMatch?fnMatch[1].replace(/['"]/g,''):'processed.pdf';
+      const blob=new Blob([xhr.response],{type:xhr.getResponseHeader('Content-Type')||'application/pdf'});
+      const url=URL.createObjectURL(blob);
+      const sz=fmtSz(blob.size);
+      setTimeout(()=>{
+        prog.classList.remove('on');
+        const sb=document.getElementById('sbox'); sb.classList.add('on');
+        document.getElementById('sTtl').textContent=curT.name+' Complete!';
+        document.getElementById('sSub').textContent=files.length>1?`Successfully processed ${files.length} files. Output size: ${sz}`:`File processed successfully. Output size: ${sz}`;
+        document.getElementById('dlBtn').onclick=()=>{
+          const a=document.createElement('a'); a.href=url; a.download=fname;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(()=>URL.revokeObjectURL(url),3000);
+          showToast('✅ Download started!');
+        };
+      },400);
+    } else {
+      let msg='Server error.';
+      try{const d=JSON.parse(xhr.responseText);msg=d.error||msg;}catch(e){}
+      setTimeout(()=>{prog.classList.remove('on');showError(msg);},400);
+    }
+  };
+
+  xhr.onerror=()=>{
+    clearInterval(iv);
+    setTimeout(()=>{prog.classList.remove('on');showError('Could not reach server. Is app.py running on port 5000?');},400);
+  };
+
+  xhr.responseType='blob';
+  xhr.send(fd);
+}
+
+function setProgress(pct,label,msg){
+  document.getElementById('uplBr').style.width=pct+'%';
+  document.getElementById('uplPct').textContent=Math.round(pct)+'%';
+  document.getElementById('uplLb').textContent=label;
+  document.getElementById('uplMsg').textContent=msg;
+}
+
+function showError(msg){
+  document.getElementById('errBox').classList.add('on');
+  document.getElementById('errTtl').textContent='Processing Failed';
+  document.getElementById('errSub').textContent=msg;
+}
+
+// ══════════════════════════════════
+// KEYBOARD + TOAST
+// ══════════════════════════════════
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAuth();}});
+let _tt;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('on'); clearTimeout(_tt);
+  _tt=setTimeout(()=>t.classList.remove('on'),4500);
+}
+</script>
+</body>
+</html>
